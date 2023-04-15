@@ -1,9 +1,4 @@
 --- 模块功能：MQTT客户端处理框架
--- @author openLuat
--- @module mqtt.mqttTask
--- @license MIT
--- @copyright openLuat
--- @release 2018.03.28
 
 module(...,package.seeall)
 
@@ -13,6 +8,7 @@ require"mqttOutMsg"
 require"mqttInMsg"
 
 local ready = false
+mqttClient=nil
 
 --- MQTT连接是否处于激活状态
 -- @return 激活状态返回true，非激活状态返回false
@@ -35,22 +31,25 @@ sys.taskInit(
             if socket.isReady() then
                 local imei = misc.getImei()
                 --创建一个MQTT客户端
-                local mqttClient = mqtt.client(imei,600,"user","password")
+                mqttClient = mqtt.client(imei,600,"user","password")
                 --阻塞执行MQTT CONNECT动作，直至成功
                 --如果使用ssl连接，打开mqttClient:connect("lbsmqtt.airm2m.com",1884,"tcp_ssl",{caCert="ca.crt"})，根据自己的需求配置
                 --mqttClient:connect("lbsmqtt.airm2m.com",1884,"tcp_ssl",{caCert="ca.crt"})
-                --if mqttClient:connect("lbsmqtt.airm2m.com",1884,"tcp") then
-                if mqttClient:connect("47.120.11.246",1883,"tcp") then
+                if mqttClient:connect("47.120.11.246",9000,"tcp") then
+                --if mqttClient:connect("47.120.11.246",1883,"tcp") then
                     retryConnectCnt = 0
                     ready = true
+                    sys.publish("mqtt_ok")
                     --订阅主题
-                    if mqttClient:subscribe({["/event0"]=0, ["/中文event1"]=1}) then
+                    if mqttClient:subscribe("moscaErrorCode",0) then
+                        log.info("====================subscribe_ok======================")
                         mqttOutMsg.init()
                         --循环处理接收和发送的数据
                         while true do
                             if not mqttInMsg.proc(mqttClient) then log.error("mqttTask.mqttInMsg.proc error") break end
                             if not mqttOutMsg.proc(mqttClient) then log.error("mqttTask.mqttOutMsg proc error") break end
                         end
+                        --不应该进入下面的uninit
                         mqttOutMsg.unInit()
                     end
                     ready = false
